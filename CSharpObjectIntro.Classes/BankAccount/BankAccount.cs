@@ -6,44 +6,125 @@ using System.Threading.Tasks;
 
 namespace CSharpObjectIntro.Classes.BankAccount
 {
-    public class BankAccount
-    {
-        // As you complete each task make sure you test your code carefully
-        // Choose some combination of manual testing, Debug.Assert and unit tests
+	public class BankAccount
+	{
+		// Fields
+		private const int MaxLimit = 1000;
+		private readonly List<Transaction> _transactions = new();
 
-        // Task One        
-        // The bank account should have a balance property        
-        // It should have a constructor that sets the initial balance (default zero) and the opening date (default today)
-        // It should have methods to deposit and withdraw/make payments from the account. 
+		// Properties
+		public decimal Balance { get; private set; }
+		public decimal OpeningBalance { get; private set; }
+		public DateTime OpeningDate { get; private set; }
+		public int OverdraftLimit { get; private set; }
 
-        // Task Two
-        // Give the option to set an overdraft limit
-        // Do not allow a withdrawal/payment if the overdraft limit is exceeded. You could return false or throw an invalid operation exception.
+		// Constructors
+		public BankAccount(DateTime date, decimal openingBalance = 0)
+		{
+			OpeningBalance = openingBalance;
+			Balance = openingBalance;
+			OpeningDate = date;
+		}
 
-        // Task Three
-        // Create a new class called AccountTransaction. This should be in a separate file.
-        // It could contain properties such as
-        // date, amount, category, counterparty, transactionType, description (optional)
-        // e.g 26/09/2022 16:45, -300, Groceries, Waitrose, Card, Weekly shop
-        //     27/09/2022 17:40, 200, Gift, Bob Smith, Cheque, Birthday present
-        // You might wish to use enums for category and transactionType
-        // Amend your bank account to contain a list of transactions
-        // The methods for  deposit and withdraw/make payments should be amended to add transactions
+		public BankAccount()
+		{
+			Balance = 0;
+			OpeningBalance = 0;
+			OpeningDate = DateTime.Today;
+		}
 
-        // Task Four
-        // Now add some new methods to your account
-        // - See what the balance was at a previous date
-        // - See how much money was spent in a given time period
-        // - See how much money was spent in different categories
+		// Private Methods
+		private bool DecrementBalance(decimal amount)
+		{
+			bool updated = false;
+			decimal newBalance = Balance - amount;
+			if (newBalance > OverdraftLimit * -1)
+			{
+				Balance = newBalance;
+				updated = true;
+			}
+			return updated;
+		}
 
-        // Extension
-        // Work out how much interest is payable on your account
-        // For the moment make up the interest rates, though later we could look at loading them from a website
-        // The interest should be added as transactions to your account
+		// Public Methods
+		public bool UpdateOverdraftLimit(int limit)
+		{
+			bool updated = false;
+			limit = Math.Abs(limit);
+			if ((limit < MaxLimit) && (Balance >= 0))
+			{
+				OverdraftLimit = limit;
+				updated = true;
+			}
+			return updated;
+		}
 
+		public bool Withdraw(DateTime date, decimal amount, TransactionCategory category, TransactionType type, string counterParty, string description = "")
+		{
+			bool succeeded = false;
+			if (DecrementBalance(amount))
+			{
+				var transaction = new Transaction(date, amount * -1, category, type, counterParty, description);
+				_transactions.Add(transaction);
+				succeeded = true;
+			}
+			return succeeded;
+		}
 
+		public bool Withdraw(decimal amount, TransactionCategory category, TransactionType type, string counterParty, string description = "")
+		{
+			return Withdraw(DateTime.Today, amount, category, type, counterParty, description);
+		}
 
+		public void Deposit(DateTime date, decimal amount, TransactionCategory category, TransactionType type, string counterParty, string description = "")
+		{
+			Balance += amount;
+			var transaction = new Transaction(date, amount, category, type, counterParty, description);
+			_transactions.Add(transaction);
+		}
 
+		public void Deposit(decimal amount, TransactionCategory category, TransactionType type, string counterParty, string description = "")
+		{
+			Deposit(DateTime.Today, amount, category, type, counterParty, description);
+		}
 
-    }
+		public decimal CheckBalance(DateTime date)
+		{
+			decimal totalTransactions = _transactions.Sum(t => t.Date <= date ? t.Amount : 0.0m);
+			return OpeningBalance + totalTransactions;
+		}
+
+		public decimal CheckSpending(DateTime startDate, DateTime endDate)
+		{
+			decimal moneySpent = _transactions.Sum(t =>
+			{
+				if ((t.Amount < 0) && (t.Date >= startDate) && (t.Date <= endDate))
+				{
+					return Math.Abs(t.Amount);
+				}
+				return 0.0m;
+			});
+			return moneySpent;
+		}
+
+		public decimal CheckSpending(DateTime startDate, DateTime endDate, TransactionCategory category)
+		{
+			decimal moneySpent = _transactions.Sum(t =>
+			{
+				if ((t.Amount < 0) && (t.Date >= startDate) && (t.Date <= endDate) && (t.Category == category))
+				{
+					return Math.Abs(t.Amount);
+				}
+				return 0.0m;
+			});
+			return moneySpent;
+		}
+
+		public override string ToString()
+		{
+			return $"BankAccount: OpeningDate: {OpeningDate:d} OverdraftLimit: {OverdraftLimit} Balance: {Balance:C} ";
+		}
+	}
 }
+
+
